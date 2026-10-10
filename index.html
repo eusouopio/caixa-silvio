@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Uma caixa pra você</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one-screen game UI. Intro case -> roulette strip with center marker -> ticket reveal. Single dark look by choice. */
+:root{
+  --bg:#0d1013; --panel:#161b20; --panel-2:#1d242b; --line:#2b333c;
+  --fg:#e9ecef; --muted:#8b96a1; --marker:#f6c443;
+  --blue:#4b69ff; --purple:#8847ff; --pink:#d32ce6; --red:#eb4b4b; --gold:#e8b23a; --gold-hi:#ffe08a;
+  --display:"Saira Condensed","Arial Narrow",Impact,sans-serif;
+  --body:"Barlow","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;overflow-x:hidden;
+  background-image:radial-gradient(ellipse 80% 50% at 50% 0%, #1a222b 0%, transparent 70%),
+  repeating-linear-gradient(0deg, transparent 0 3px, rgba(255,255,255,.012) 3px 4px);}
+.wrap{max-width:1000px;margin:0 auto;padding-inline:16px;padding-block:20px 40px;display:flex;flex-direction:column;gap:20px;min-height:100%;box-sizing:border-box}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.mute{background:var(--panel);border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:12px;letter-spacing:.08em;padding:8px 12px;border-radius:4px;cursor:pointer}
+.mute:focus-visible,.btn:focus-visible{outline:2px solid var(--marker);outline-offset:3px}
+h1{font-family:var(--display);font-weight:800;text-transform:uppercase;font-size:clamp(34px,7vw,64px);line-height:.95;margin:0;letter-spacing:.01em;text-wrap:balance}
+h1 em{font-style:normal;color:var(--gold)}
+.lead{color:var(--muted);margin:0;max-width:52ch;line-height:1.5}
+
+/* Intro case */
+.stage{display:flex;flex-direction:column;align-items:center;gap:24px;padding-block:12px}
+/* Hard-shell crate, front 3/4 view; lid hinges at the back and flips open */
+.case{position:relative;width:min(340px,82vw);aspect-ratio:1.3;max-width:100%;perspective:900px;animation:float 3.2s ease-in-out infinite}
+.case .glow{position:absolute;inset:-25%;background:radial-gradient(closest-side,rgba(232,178,58,.3),transparent);filter:blur(10px);transition:opacity .4s}
+.case .shadow{position:absolute;left:8%;right:8%;bottom:-6%;height:10%;background:radial-gradient(closest-side,rgba(0,0,0,.65),transparent)}
+.case .body{position:absolute;left:0;right:0;top:34%;bottom:0;border-radius:6px 6px 10px 10px;
+  background:linear-gradient(180deg,#46535f 0%,#2d3740 18%,#1f272e 70%,#171d22 100%);
+  border:1px solid #56636f;box-shadow:inset 0 2px 0 rgba(255,255,255,.1),inset 0 -10px 18px rgba(0,0,0,.4);overflow:hidden}
+.case .ribs{position:absolute;inset:14% 6% 18%;background:repeating-linear-gradient(90deg,rgba(255,255,255,.05) 0 3px,rgba(0,0,0,.25) 3px 6px,transparent 6px 26px);border-radius:3px}
+.case .band{position:absolute;left:0;right:0;top:40%;height:20%;background:linear-gradient(90deg,#b8862a,var(--gold-hi) 50%,#b8862a);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;letter-spacing:.2em;color:#2a1f05;font-size:clamp(13px,3.4vw,18px);box-shadow:0 2px 0 rgba(0,0,0,.35),0 -1px 0 rgba(255,255,255,.3)}
+.case .stamp{position:absolute;left:0;right:0;bottom:7%;text-align:center;font-family:var(--mono);font-size:10.5px;color:#93a0ac;letter-spacing:.14em}
+.case .bolt{position:absolute;width:9px;height:9px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#c8d1d9,#59656f);bottom:6%}
+.case .bolt.l{left:4%}.case .bolt.r{right:4%}
+.case .handle{position:absolute;top:52%;width:5%;height:22%;border:3px solid #6b7884;border-radius:4px;background:#1a2026}
+.case .handle.l{left:-3%}.case .handle.r{right:-3%}
+.case .inside{position:absolute;left:3%;right:3%;top:30%;height:10%;border-radius:4px;background:radial-gradient(ellipse at 50% 100%,var(--gold-hi),#8a6418 60%,#2a1f05);opacity:0;transition:opacity .3s}
+.case .beams{position:absolute;left:50%;top:32%;width:180%;aspect-ratio:1;transform:translate(-50%,-50%) scale(.2);opacity:0;pointer-events:none;
+  background:repeating-conic-gradient(from 0deg,rgba(255,224,138,.35) 0 6deg,transparent 6deg 18deg);
+  -webkit-mask:radial-gradient(closest-side,#000 20%,transparent 70%);mask:radial-gradient(closest-side,#000 20%,transparent 70%)}
+.case .lid{position:absolute;left:-2%;right:-2%;top:16%;height:22%;transform-origin:50% 0%;transform-style:preserve-3d;
+  border-radius:8px 8px 4px 4px;background:linear-gradient(180deg,#5d6b78 0%,#3a4651 45%,#2b343d 100%);
+  border:1px solid #6a7886;box-shadow:inset 0 2px 0 rgba(255,255,255,.18),0 8px 14px rgba(0,0,0,.45);transition:transform .7s cubic-bezier(.3,1.4,.5,1)}
+.case .lid::after{content:"";position:absolute;left:10%;right:10%;top:28%;height:22%;border-radius:3px;background:repeating-linear-gradient(90deg,rgba(0,0,0,.25) 0 2px,transparent 2px 14px)}
+.case .latch{position:absolute;top:31%;width:10%;height:11%;background:linear-gradient(180deg,#f1cc6a,#b8862a);border-radius:3px;border:1px solid #ffe08a;transform-origin:50% 0;transition:transform .2s;z-index:2}
+.case .latch.l{left:20%}.case .latch.r{right:20%}
+@keyframes float{50%{transform:translateY(-8px) rotate(-.6deg)}}
+@keyframes rattle{0%,100%{transform:none}20%{transform:translate(-3px,1px) rotate(-1.5deg)}40%{transform:translate(3px,-1px) rotate(1.5deg)}60%{transform:translate(-2px,0) rotate(-1deg)}80%{transform:translate(2px,1px) rotate(1deg)}}
+.case.shake{animation:rattle .16s linear 4}
+.case.unlatched .latch{transform:rotateX(-75deg) translateY(-4px)}
+.case.open .lid{transform:translateY(-6%) rotateX(78deg)}
+.case.open .inside{opacity:1}
+.case.open .glow{opacity:1;background:radial-gradient(closest-side,rgba(255,224,138,.6),transparent)}
+.case.open .beams{animation:beams 1.4s ease-out forwards}
+@keyframes beams{30%{opacity:1}100%{opacity:.9;transform:translate(-50%,-50%) scale(1) rotate(40deg)}}
+.btn{font-family:var(--display);font-weight:800;text-transform:uppercase;letter-spacing:.12em;font-size:22px;padding:14px 34px;border-radius:4px;border:0;cursor:pointer;color:#1b1404;background:linear-gradient(180deg,var(--gold-hi),var(--gold));box-shadow:0 0 0 1px #f5d67c inset,0 8px 24px rgba(232,178,58,.3);transition:transform .12s, filter .12s}
+.btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:var(--panel-2);color:var(--fg);box-shadow:0 0 0 1px var(--line) inset;font-size:18px}
+.meta{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.06em}
+
+/* Roulette */
+.roll{display:flex;flex-direction:column;gap:18px}
+.window{position:relative;height:190px;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.window::before,.window::after{content:"";position:absolute;top:0;bottom:0;width:18%;z-index:2;pointer-events:none}
+.window::before{left:0;background:linear-gradient(90deg,var(--panel),transparent)}
+.window::after{right:0;background:linear-gradient(-90deg,var(--panel),transparent)}
+.marker{position:absolute;left:50%;top:0;bottom:0;width:3px;transform:translateX(-50%);background:var(--marker);z-index:3;box-shadow:0 0 12px var(--marker)}
+.marker::before,.marker::after{content:"";position:absolute;left:50%;transform:translateX(-50%);border:9px solid transparent}
+.marker::before{top:0;border-top-color:var(--marker)}
+.marker::after{bottom:0;border-bottom-color:var(--marker)}
+.strip{position:absolute;top:16px;left:0;display:flex;gap:6px;will-change:transform}
+.card{flex:none;width:150px;height:156px;box-sizing:border-box;background:linear-gradient(180deg,var(--panel-2),#12171b);border-radius:4px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px 8px 14px;overflow:hidden}
+.card::after{content:"";position:absolute;left:0;right:0;bottom:0;height:5px;background:var(--r)}
+.card::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 100%,color-mix(in srgb,var(--r) 30%,transparent),transparent 70%)}
+.card svg{width:64px;height:64px;color:var(--r);position:relative;filter:drop-shadow(0 4px 8px rgba(0,0,0,.5))}
+.card .n{font-family:var(--display);font-weight:700;font-size:16px;text-align:center;line-height:1.05;position:relative;text-wrap:balance}
+.card.gold{background:linear-gradient(180deg,#3a2d0c,#1b1606)}
+.card.win{outline:2px solid var(--r);outline-offset:-2px}
+.r-blue{--r:var(--blue)}.r-purple{--r:var(--purple)}.r-pink{--r:var(--pink)}.r-red{--r:var(--red)}.r-gold{--r:var(--gold)}
+
+.result{min-height:120px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
+.result .label{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.result .item{font-family:var(--display);font-weight:800;font-size:clamp(28px,6vw,44px);text-transform:uppercase;line-height:1}
+.result .cond{color:var(--muted);font-size:15px}
+.glitch{font-family:var(--mono);color:var(--red);font-size:13px;letter-spacing:.08em}
+
+/* Ticket */
+.flash{position:fixed;inset:0;background:radial-gradient(circle,var(--gold-hi),var(--gold) 40%,transparent 80%);opacity:0;pointer-events:none;z-index:20}
+.flash.on{animation:flash 1.1s ease-out}
+@keyframes flash{0%{opacity:0}12%{opacity:.85}100%{opacity:0}}
+canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:21}
+.reveal{display:flex;flex-direction:column;gap:22px;align-items:center;animation:rise .8s cubic-bezier(.2,.9,.2,1)}
+@keyframes rise{from{opacity:0;transform:translateY(24px) scale(.97)}}
+.ticket{width:100%;max-width:720px;display:grid;grid-template-columns:1fr auto;background:linear-gradient(135deg,#2a2009,#16120a 55%,#221a07);border:1px solid #6b5420;border-radius:10px;position:relative;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.55),0 0 60px rgba(232,178,58,.18)}
+.ticket::before{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,224,138,.16) 45%,transparent 60%);background-size:250% 100%;animation:sheen 3.5s ease-in-out infinite}
+@keyframes sheen{from{background-position:120% 0}to{background-position:-120% 0}}
+.t-main{padding:24px 24px 22px;display:flex;flex-direction:column;gap:16px;min-width:0;position:relative}
+.t-kicker{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--gold);text-transform:uppercase}
+.t-title{font-family:var(--display);font-weight:800;text-transform:uppercase;font-size:clamp(34px,7vw,58px);line-height:.9;margin:0;color:var(--gold-hi)}
+.t-title span{display:block;color:var(--fg);font-size:.55em;letter-spacing:.06em}
+.t-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px 20px}
+.t-grid div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.t-grid dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#a99364}
+.t-grid dd{margin:0;font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:.02em}
+.t-stub{width:110px;border-left:2px dashed #6b5420;display:flex;align-items:center;justify-content:center;position:relative;background:rgba(0,0,0,.18)}
+.t-stub::before,.t-stub::after{content:"";position:absolute;left:-12px;width:22px;height:22px;border-radius:50%;background:var(--bg)}
+.t-stub::before{top:-11px}.t-stub::after{bottom:-11px}
+.t-stub p{writing-mode:vertical-rl;transform:rotate(180deg);margin:0;font-family:var(--mono);font-size:12px;letter-spacing:.3em;color:var(--gold);white-space:nowrap}
+.msg{max-width:56ch;text-align:center;font-size:18px;line-height:1.55;margin:0}
+.msg strong{color:var(--gold-hi)}
+.count{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.count div{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:10px 14px;min-width:70px;text-align:center}
+.count b{display:block;font-family:var(--display);font-size:34px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.count small{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+
+/* Drama */
+.overlay{position:fixed;inset:0;z-index:15;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:6px;padding-top:calc(env(safe-area-inset-top,0px) + 9vh);pointer-events:none;
+  background:radial-gradient(ellipse at 50% 60%,transparent 30%,rgba(110,0,0,.6) 100%);opacity:0;transition:opacity .4s}
+.overlay.on{opacity:1}
+.overlay.beat{animation:redbeat .25s ease-out}
+@keyframes redbeat{0%{background-color:rgba(255,40,40,.18)}100%{background-color:transparent}}
+.overlay .lbl{font-family:var(--mono);font-size:13px;letter-spacing:.24em;text-transform:uppercase;color:#ffb0a8}
+.timer{font-family:var(--mono);font-weight:600;font-size:clamp(64px,16vw,124px);color:#ff4a3d;text-shadow:0 0 24px rgba(255,60,50,.75);font-variant-numeric:tabular-nums;line-height:1}
+.stage.armed h1,.stage.armed .lead,.stage.armed .meta,.stage.armed .btn{opacity:0;transition:opacity .3s}
+.case.arming{animation:rattle var(--rd,.22s) linear infinite}
+.wrap.quake{animation:quake .6s cubic-bezier(.36,.07,.19,.97)}
+@keyframes quake{10%,90%{transform:translate(-2px,1px)}20%,80%{transform:translate(5px,-3px)}30%,50%,70%{transform:translate(-9px,4px)}40%,60%{transform:translate(9px,-4px)}}
+.flash.white{background:#fff}
+.shock{position:fixed;width:20px;height:20px;border-radius:50%;border:5px solid var(--gold-hi);transform:translate(-50%,-50%);animation:shock .9s ease-out forwards;z-index:22;pointer-events:none;box-shadow:0 0 30px var(--gold)}
+@keyframes shock{to{width:170vmax;height:170vmax;opacity:0;border-width:1px}}
+.window{transition:box-shadow .4s,border-color .4s}
+.window.tense{border-color:var(--marker);box-shadow:0 0 0 1px var(--marker),0 0 50px rgba(246,196,67,.35)}
+.hb{animation:hb .8s ease-in-out infinite;color:var(--marker)!important}
+@keyframes hb{0%,100%{transform:scale(1)}15%{transform:scale(1.12)}30%{transform:scale(1)}45%{transform:scale(1.08)}}
+.pop{animation:pop .7s cubic-bezier(.2,1.7,.4,1) both}
+@keyframes pop{from{transform:scale(2.4);opacity:0}}
+.card.armed{animation:armblink .18s steps(2) infinite}
+@keyframes armblink{50%{outline:3px solid #ff3b30;outline-offset:-3px;background:#3a0d0b}}
+.window.rattle{animation:rattle .12s linear infinite}
+.roll.gone{animation:gone .45s ease-in forwards}
+@keyframes gone{to{opacity:0;transform:scale(1.2);filter:blur(10px) brightness(2.5)}}
+.reveal .ticket{animation:slam .7s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes slam{from{transform:scale(1.9) rotate(-5deg);opacity:0}}
+
+@media (max-width:560px){
+  .window{height:150px}
+  .strip{top:12px}
+  .card{width:112px;height:124px}
+  .card svg{width:46px;height:46px}
+  .card .n{font-size:14px}
+  .ticket{grid-template-columns:1fr}
+  .t-stub{width:auto;height:46px;border-left:0;border-top:2px dashed #6b5420}
+  .t-stub::before,.t-stub::after{top:-12px;left:auto}
+  .t-stub::before{left:-11px}.t-stub::after{right:-11px;bottom:auto}
+  .t-stub p{writing-mode:horizontal-tb;transform:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .case,.ticket::before{animation:none}
+}
+</style>
+<style>body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+
+
+<div class="flash" id="flash"></div>
+<canvas id="fx"></canvas>
+<div class="overlay" id="ov" aria-live="assertive"><span class="lbl" id="ovl">A caixa abre em</span><span class="timer" id="timer">5.00</span></div>
+
+<main class="wrap">
+  <div class="top">
+    <span class="eyebrow">Entrega especial · Edição 40 anos</span>
+    <button class="mute" id="mute" type="button" aria-pressed="false">Som: ligado</button>
+  </div>
+
+  <!-- INTRO -->
+  <section id="intro" class="stage">
+    <div style="display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center">
+      <h1 id="hello">Chegou uma caixa<br>pra <em id="nameTop">você</em></h1>
+      <p class="lead">Quarenta anos não é pra qualquer um. Essa caixa veio lacrada, com a chave inclusa, e tem um presente dentro. Duvido você adivinhar o que é.</p>
+    </div>
+    <div class="case" id="case" aria-hidden="true">
+      <div class="glow"></div><div class="shadow"></div>
+      <div class="beams"></div>
+      <div class="handle l"></div><div class="handle r"></div>
+      <div class="inside"></div>
+      <div class="body"><div class="ribs"></div><div class="band">EDIÇÃO 40 ANOS</div><div class="stamp">Nº 0040 · LACRADA · SILVIO</div><span class="bolt l"></span><span class="bolt r"></span></div>
+      <div class="lid"></div>
+      <div class="latch l"></div><div class="latch r"></div>
+    </div>
+    <button class="btn" id="open" type="button">Abrir caixa</button>
+    <div class="meta"><span>Chave: inclusa</span><span>Raridade: ???</span><span>Idade: 40</span><span>Liga o som</span></div>
+  </section>
+
+  <!-- ROLL -->
+  <section id="roll" class="roll" hidden>
+    <div class="window" id="win"><div class="marker"></div><div class="strip" id="strip"></div></div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </section>
+
+  <!-- REVEAL -->
+  <section id="reveal" class="reveal" hidden aria-live="polite">
+    <span class="eyebrow" style="color:var(--gold)">★ Item lendário desbloqueado</span>
+    <article class="ticket">
+      <div class="t-main">
+        <span class="t-kicker">Passe de acesso · Uma noite por minha conta</span>
+        <h2 class="t-title">Vale Brother<span>Edição 40 anos</span></h2>
+        <dl class="t-grid" style="margin:0">
+          <div><dt>Titular</dt><dd id="tName">Você</dd></div>
+          <div><dt>Data</dt><dd>Você escolhe</dd></div>
+          <div><dt>Local</dt><dd>A combinar</dd></div>
+          <div><dt>Condição</dt><dd style="color:var(--gold-hi)">Tudo pago</dd></div>
+        </dl>
+      </div>
+      <div class="t-stub"><p>ADMIT ONE · BRO40</p></div>
+    </article>
+    <p class="msg" id="msg">Feliz 40 anos, irmão. Drop lendário: <strong>uma noite inteira por minha conta</strong>. Bebida, petisco e conversa até tarde, tudo pago. Você só escolhe o dia.</p>
+    <p class="msg" style="font-size:16px;color:var(--muted)">E não, não dá pra trocar por skin. Duvido você não marcar essa semana. GG.</p>
+    <span class="eyebrow">P.S.: Com o joystick é mais fácil!</span>
+  </section>
+</main>
+
+<script>
+// ===== Personalize aqui =====
+const NOME = "Silvio";
+// ============================
+
+const ICONS = {
+  sock:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M24 6h18v26l-14 18a9 9 0 0 1-14-11l10-11z" fill="currentColor" fill-opacity=".18"/><path d="M24 14h18"/><circle cx="20" cy="46" r="2.5" fill="currentColor"/></svg>',
+  book:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M12 10h30a8 8 0 0 1 8 8v36H20a8 8 0 0 1-8-8z" fill="currentColor" fill-opacity=".18"/><path d="M20 22h20M20 30h20M20 38h12"/></svg>',
+  plate:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3"><circle cx="32" cy="34" r="20" fill="currentColor" fill-opacity=".18"/><circle cx="32" cy="34" r="11"/><path d="M44 8c4 4 6 9 2 13M50 6c3 3 4 7 1 10"/></svg>',
+  broom:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M44 6 30 30"/><path d="M24 28l12 7-6 22-20-12z" fill="currentColor" fill-opacity=".18"/><path d="M16 46l-4 7M22 50l-3 8M28 54l-1 6"/></svg>',
+  pad:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M14 22h36a8 8 0 0 1 8 8l2 14a6 6 0 0 1-11 4l-5-6H20l-5 6a6 6 0 0 1-11-4l2-14a8 8 0 0 1 8-8z" fill="currentColor" fill-opacity=".18"/><path d="M18 32v8M14 36h8"/><circle cx="44" cy="33" r="2" fill="currentColor"/><circle cx="48" cy="39" r="2" fill="currentColor"/></svg>',
+  pizza:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M8 14c16-8 32-8 48 0L32 58z" fill="currentColor" fill-opacity=".18"/><path d="M10 20c14-6 30-6 44 0"/><circle cx="28" cy="28" r="3" fill="currentColor"/><circle cx="38" cy="36" r="3" fill="currentColor"/><circle cx="31" cy="44" r="2.5" fill="currentColor"/></svg>',
+  headset:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M12 38v-6a20 20 0 0 1 40 0v6"/><rect x="8" y="36" width="12" height="18" rx="4" fill="currentColor" fill-opacity=".18"/><rect x="44" y="36" width="12" height="18" rx="4" fill="currentColor" fill-opacity=".18"/></svg>',
+  ticket:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M6 18h52v9a5 5 0 0 0 0 10v9H6v-9a5 5 0 0 0 0-10z" fill="currentColor" fill-opacity=".25"/><path d="M42 18v28" stroke-dasharray="3 4"/><path d="M22 26l2.5 5 5.5.8-4 3.9 1 5.5-5-2.6-5 2.6 1-5.5-4-3.9 5.5-.8z" fill="currentColor"/></svg>'
+};
+Object.assign(ICONS,{
+  disc:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><rect x="12" y="6" width="40" height="52" rx="4" fill="currentColor" fill-opacity=".18"/><circle cx="32" cy="32" r="13"/><circle cx="32" cy="32" r="3.5" fill="currentColor"/><path d="M12 14h40"/></svg>',
+  shirt:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M22 8l-14 8 6 12 6-3v31h24V25l6 3 6-12-14-8c-2 5-6 7-10 7s-8-2-10-7z" fill="currentColor" fill-opacity=".18"/></svg>',
+  jersey:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M22 8l-14 8 6 12 6-3v31h24V25l6 3 6-12-14-8c-2 5-6 7-10 7s-8-2-10-7z" fill="#f2f2f2"/><path d="M20 25v31h24V25" fill="none"/><path d="M8 16l6 12M56 16l-6 12" stroke="#111" stroke-width="5"/><path d="M26 10c2 3 4 4 6 4s4-1 6-4" stroke="#111" stroke-width="4"/><text x="32" y="44" text-anchor="middle" font-family="Saira Condensed,Impact,sans-serif" font-weight="800" font-size="16" fill="#111" stroke="none">40</text></svg>',
+  bike:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"><circle cx="15" cy="42" r="10" fill="currentColor" fill-opacity=".18"/><circle cx="49" cy="42" r="10" fill="currentColor" fill-opacity=".18"/><path d="M15 42l10-18h16l8 18M25 24l8 18 8-18M22 18h8M41 24l-3-8h6"/></svg>',
+  mouse:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M32 8c10 0 16 8 16 18v14c0 10-7 16-16 16s-16-6-16-16V26c0-10 6-18 16-18z" fill="currentColor" fill-opacity=".18"/><path d="M32 8v16M16 26h32"/><rect x="29.5" y="14" width="5" height="8" rx="2" fill="currentColor"/></svg>',
+  keys:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><rect x="4" y="18" width="56" height="28" rx="4" fill="currentColor" fill-opacity=".18"/><path d="M12 26h4M22 26h4M32 26h4M42 26h4M52 26h0M12 33h4M22 33h4M32 33h4M42 33h8M18 40h28"/></svg>',
+  shoe:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M6 44V22h14c2 6 6 9 12 10l18 4c6 1 9 4 9 8z" fill="currentColor" fill-opacity=".18"/><path d="M6 44v6h53v-6M24 26l4 4M28 22l4 4"/></svg>',
+  phone:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><rect x="18" y="6" width="28" height="52" rx="5" fill="currentColor" fill-opacity=".18"/><path d="M28 12h8"/><circle cx="32" cy="50" r="2" fill="currentColor"/></svg>'
+});
+const POOL = [
+  {n:'Par de meias', r:'blue', i:'sock'},
+  {n:'Manual dos 40 anos', r:'blue', i:'book'},
+  {n:'Chinelo novo', r:'blue', i:'shoe'},
+  {n:'Jogo novo', r:'purple', i:'disc'},
+  {n:'Joystick novo', r:'purple', i:'pad'},
+  {n:'Mouse gamer', r:'purple', i:'mouse'},
+  {n:'Camisa 40', r:'pink', i:'jersey'},
+  {n:'Teclado mecânico', r:'pink', i:'keys'},
+  {n:'Headset gamer', r:'pink', i:'headset'},
+  {n:'Bicicleta', r:'red', i:'bike'},
+  {n:'Celular novo', r:'red', i:'phone'},
+];
+const GOLD = {n:'Vale Brother', c:'Edição 40 anos · ★ Lendário', r:'gold', i:'ticket'};
+const WEIGHTS = {blue:38, purple:30, pink:20, red:12};
+
+const $ = id => document.getElementById(id);
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const nome = NOME.trim();
+if (nome){ $('nameTop').textContent = nome; $('tName').textContent = nome; }
+
+// ---- audio ----
+let ac=null, muted=false;
+function audio(){ if(!ac){ try{ ac=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(ac&&ac.state==='suspended') ac.resume(); }
+function tone(freq,dur,type='square',vol=.06,when=0){
+  if(!ac||muted) return;
+  const t=ac.currentTime+when, o=ac.createOscillator(), g=ac.createGain();
+  o.type=type; o.frequency.setValueAtTime(freq,t);
+  g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g).connect(ac.destination); o.start(t); o.stop(t+dur+.02);
+}
+const tick = ()=> tone(1700+Math.random()*200,.035,'square',.045);
+const thud = ()=> { tone(140,.35,'sine',.25); tone(90,.4,'triangle',.18); };
+const sad = ()=> { tone(392,.25,'triangle',.12); tone(330,.25,'triangle',.12,.22); tone(262,.5,'triangle',.12,.44); };
+const glory = ()=> { [523,659,784,1047,1319].forEach((f,k)=>tone(f,.9,'triangle',.11,k*.09)); tone(262,1.4,'sine',.18,.0); };
+$('mute').onclick = ()=>{ muted=!muted; $('mute').textContent='Som: '+(muted?'desligado':'ligado'); $('mute').setAttribute('aria-pressed',muted); };
+
+// ---- strip ----
+function rand(){ let x=Math.random()*100; for(const [r,w] of Object.entries(WEIGHTS)){ if((x-=w)<0){ const opts=POOL.filter(p=>p.r===r); return opts[Math.floor(Math.random()*opts.length)]; } } return POOL[0]; }
+function cardHTML(it){ return `<div class="card r-${it.r}${it.r==='gold'?' gold':''}">${ICONS[it.i]}<div class="n">${it.n}</div></div>`; }
+const TOTAL=72, TARGET=62;
+function build(winner, teaseGold){
+  const items=[];
+  for(let k=0;k<TOTAL;k++) items.push(rand());
+  items[TARGET]=winner;
+  if(teaseGold){ // near misses on both sides
+    items[TARGET-1]=POOL[6]; items[TARGET+1]=POOL[5];
+    items[TARGET-7]=GOLD; // one fake-out that flies past
+  } else {
+    items[TARGET+1]=GOLD; // so close!
+  }
+  $('strip').innerHTML=items.map(cardHTML).join('');
+  $('strip').style.transform='translateX(0px)';
+}
+
+// ---- extra sounds ----
+function boom(vol=.9){
+  if(!ac||muted) return;
+  const len=ac.sampleRate*1.6, buf=ac.createBuffer(1,len,ac.sampleRate), d=buf.getChannelData(0);
+  for(let k=0;k<len;k++) d[k]=(Math.random()*2-1)*Math.pow(1-k/len,2.5);
+  const src=ac.createBufferSource(), lp=ac.createBiquadFilter(), g=ac.createGain();
+  src.buffer=buf; lp.type='lowpass'; lp.frequency.setValueAtTime(1800,ac.currentTime); lp.frequency.exponentialRampToValueAtTime(120,ac.currentTime+1.2);
+  g.gain.value=vol; src.connect(lp).connect(g).connect(ac.destination); src.start();
+  tone(70,1.1,'sine',.5); tone(45,1.4,'sine',.4);
+}
+const beep = ()=> tone(2600,.09,'square',.07);
+const heart = (v=.35)=> { tone(62,.16,'sine',v); tone(55,.18,'sine',v*.8,.17); };
+const wait = ms=>new Promise(r=>setTimeout(r,ms));
+
+// ---- particles ----
+const fx=$('fx'), cx=fx.getContext('2d'); let parts=[], running=false;
+function sizeFx(){ const dpr=Math.min(2,devicePixelRatio||1); fx.width=innerWidth*dpr; fx.height=innerHeight*dpr; cx.setTransform(dpr,0,0,dpr,0,0); }
+sizeFx(); addEventListener('resize',sizeFx);
+function burst(x,y,n,power,cols,kind='spark'){
+  if(reduce) return;
+  for(let k=0;k<n;k++){
+    const a=Math.random()*Math.PI*2, v=Math.random()*power;
+    parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-(kind==='paper'?power*.5:0),life:1,decay:kind==='spark'?.012+Math.random()*.02:.004+Math.random()*.004,
+      s:kind==='spark'?Math.random()*2.5+1.2:Math.random()*7+4,r:Math.random()*6,vr:(Math.random()-.5)*.4,c:cols[Math.floor(Math.random()*cols.length)],kind});
+  }
+  if(!running){ running=true; requestAnimationFrame(loop); }
+}
+function loop(){
+  cx.clearRect(0,0,innerWidth,innerHeight);
+  parts=parts.filter(p=>p.life>0 && p.y<innerHeight+40);
+  for(const p of parts){
+    p.life-=p.decay;
+    if(p.kind==='spark'){ p.vy+=.09; p.vx*=.97; p.vy*=.97; }
+    else { p.vy+=.32; p.vx*=.99; p.r+=p.vr; }
+    p.x+=p.vx; p.y+=p.vy;
+    cx.globalAlpha=Math.max(0,Math.min(1,p.life*1.4));
+    if(p.kind==='spark'){ cx.fillStyle=p.c; cx.beginPath(); cx.arc(p.x,p.y,p.s,0,7); cx.fill(); }
+    else { cx.save(); cx.translate(p.x,p.y); cx.rotate(p.r); cx.fillStyle=p.c; cx.fillRect(-p.s/2,-p.s/4,p.s,p.s/2); cx.restore(); }
+  }
+  cx.globalAlpha=1;
+  if(parts.length) requestAnimationFrame(loop); else { running=false; cx.clearRect(0,0,innerWidth,innerHeight); }
+}
+const FIRE=['#ffffff','#ffe08a','#ff9d2e','#ff5a2e','#e8b23a'];
+const GOLDS=['#e8b23a','#ffe08a','#ffffff','#fff3c4'];
+const PARTY=['#e8b23a','#ffe08a','#ffffff','#4b69ff','#d32ce6','#eb4b4b','#8847ff'];
+function firework(){
+  const x=innerWidth*(.15+Math.random()*.7), y=innerHeight*(.12+Math.random()*.35);
+  const pal=[PARTY[Math.floor(Math.random()*PARTY.length)],'#ffffff',PARTY[Math.floor(Math.random()*PARTY.length)]];
+  burst(x,y,70,7,pal,'spark'); tone(180+Math.random()*80,.25,'triangle',.08);
+  if(ac&&!muted) setTimeout(()=>{ for(let k=0;k<5;k++) tone(3000+Math.random()*2000,.03,'square',.02,k*.04); },120);
+}
+function center(el){ const r=el.getBoundingClientRect(); return [r.left+r.width/2, r.top+r.height/2]; }
+function flash(white){ const f=$('flash'); f.classList.toggle('white',!!white); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
+function quake(){ const w=document.querySelector('.wrap'); w.classList.remove('quake'); void w.offsetWidth; w.classList.add('quake'); if(navigator.vibrate) try{navigator.vibrate([80,40,160]);}catch(e){} }
+function shock(x,y){ if(reduce) return; const s=document.createElement('div'); s.className='shock'; s.style.left=x+'px'; s.style.top=y+'px'; document.body.appendChild(s); setTimeout(()=>s.remove(),1000); }
+function explode(x,y,big){
+  flash(!big); quake(); shock(x,y); boom(big?1:.8);
+  burst(x,y,big?220:160,big?13:11,big?GOLDS:FIRE,'spark');
+  if(big) setTimeout(()=>{ shock(x,y); burst(x,y,140,14,PARTY,'paper'); },140);
+}
+
+// ---- endless strip of gifts (the gold prize never appears here) ----
+const LOOP=24;
+function buildLoop(){
+  const items=[]; let prev=null;
+  for(let k=0;k<LOOP;k++){ let it; do{ it=rand(); }while(it===prev || (k===LOOP-1 && it===items[0])); items.push(it); prev=it; }
+  $('strip').innerHTML=items.concat(items,items).map(cardHTML).join('');
+}
+
+// speed in cards per second over time (s)
+const T_SLOW=5.2, T_ARM=7.6, T_BOOM=11.6, T_END=12.2;
+function speedAt(t){
+  if(t<1) return 22*t;                                   // spin up
+  if(t<T_SLOW) return 4+18*Math.pow(1-(t-1)/(T_SLOW-1),1.6); // slowing down
+  if(t<T_ARM) return 4-1.5*Math.sin((t-T_SLOW)/(T_ARM-T_SLOW)*Math.PI); // crawling, almost stopping
+  if(t<T_BOOM) return 4+34*Math.pow((t-T_ARM)/(T_BOOM-T_ARM),1.4); // bomb armed: speeds up
+  return 38;
+}
+
+function roll(onPhase){
+  return new Promise(res=>{
+    const strip=$('strip'), win=$('win');
+    const W=strip.children[0].getBoundingClientRect().width+6;
+    const mid=win.clientWidth/2;
+    let p=Math.random()*LOOP, lastIdx=-1, lastTick=0, beatT=0, prevNow=performance.now(), t0=prevNow, phase='';
+    (function f(now){
+      const dt=Math.min(.05,(now-prevNow)/1000); prevNow=now;
+      const t=(now-t0)/1000, v=reduce?3:speedAt(t);
+      p+=v*dt;
+      const shown=LOOP+(p%LOOP);
+      strip.style.transform=`translateX(${mid-shown*W}px)`;
+      strip.style.filter=v>14?`blur(${Math.min(3,(v-14)/8).toFixed(2)}px)`:'none';
+      const idx=Math.floor(p); if(idx!==lastIdx && now-lastTick>28){ lastIdx=idx; lastTick=now; tick(); }
+      const ph = t<T_SLOW?'spin' : t<T_ARM?'slow' : t<T_BOOM?'arm' : 'zero';
+      if(ph!==phase){ phase=ph; onPhase(ph); }
+      if(ph==='slow' && now-beatT>620){ beatT=now; heart(.42); }
+      if(t<T_END) requestAnimationFrame(f); else res();
+    })(t0);
+  });
+}
+
+// ---- flow ----
+$('open').onclick = async ()=>{
+  audio();
+  $('open').disabled=true;
+  const cs=$('case'), intro=$('intro'), ov=$('ov'), tm=$('timer'), win=$('win');
+  // 1. the case rattles and pops open
+  if(!reduce){
+    intro.classList.add('armed');
+    cs.style.setProperty('--rd','.14s'); cs.classList.add('arming');
+    for(let k=0;k<10;k++) tone(120+Math.random()*60,.06,'square',.08,k*.1);
+    await wait(1100);
+    cs.classList.remove('arming'); cs.classList.add('unlatched');
+    tone(2400,.05,'square',.08); tone(2100,.05,'square',.08,.18);
+    await wait(450);
+    cs.classList.add('open'); thud(); tone(880,.6,'sine',.07,.05); tone(1320,.6,'sine',.05,.12);
+    await wait(1300);
+  }
+  // 2. gifts keep flying past; then the box goes unstable
+  intro.hidden=true; $('roll').hidden=false;
+  buildLoop();
+  let timerRAF=0;
+  await roll(ph=>{
+    if(ph==='spin') $('result').innerHTML=`<span class="label">Sorteando o presente…</span>`;
+    if(ph==='slow'){ win.classList.add('tense'); $('result').innerHTML=`<span class="item hb" style="font-size:clamp(24px,5vw,34px)">Qual vai ser?</span>`; }
+    if(ph==='arm'){
+      win.classList.remove('tense'); win.classList.add('rattle');
+      [0,.12,.24].forEach(d=>tone(220,.09,'sawtooth',.08,d));
+      $('result').innerHTML=`<span class="glitch">ERRO · A CAIXA ESTÁ INSTÁVEL · DUVIDO SER UM DESSES</span>`;
+      $('ovl').textContent='Peraí… tem algo errado nessa caixa';
+      ov.classList.add('on');
+      const D=(T_BOOM-T_ARM)*1000, s0=performance.now(); let nextBeep=0;
+      (function f(now){
+        const el=now-s0, left=Math.max(0,D-el), frac=el/D;
+        tm.textContent=(left/1000).toFixed(2);
+        if(el>=nextBeep){ beep(); ov.classList.remove('beat'); void ov.offsetWidth; ov.classList.add('beat'); nextBeep=el+Math.max(65,750*Math.pow(1-frac,1.7)); }
+        if(left>0) timerRAF=requestAnimationFrame(f);
+      })(s0);
+    }
+    if(ph==='zero'){ tm.textContent='0.00'; tone(2600,.55,'square',.08); }
+  });
+  cancelAnimationFrame(timerRAF);
+  // 3. explosion: everything is gone
+  ov.classList.remove('on'); win.classList.remove('rattle');
+  const [mx,my]=center(document.querySelector('.marker'));
+  explode(mx,my,false);
+  burst(mx,my,140,15,['#4b69ff','#8847ff','#d32ce6','#eb4b4b','#ffffff'],'paper');
+  $('roll').classList.add('gone');
+  await wait(450);
+  $('roll').hidden=true;
+  await wait(1500);                                  // dark, smoking silence
+  // 4. the real prize
+  $('reveal').hidden=false; window.scrollTo({top:0,behavior:'smooth'});
+  await wait(60);
+  const [tx,ty]=center(document.querySelector('.ticket'));
+  flash(false); boom(.8); quake(); shock(tx,ty); setTimeout(()=>shock(tx,ty),160);
+  burst(tx,ty,220,13,GOLDS,'spark'); burst(tx,ty,160,13,PARTY,'paper'); glory();
+  [700,1100,1500,2000,2600].forEach(d=>setTimeout(firework,d));
+  let n=0; setTimeout(()=>{ const show=setInterval(()=>{ firework(); if(++n>14) clearInterval(show); },1400); },3000);
+};
+
+// ---- countdown ----
+function countdown(){
+  const target=new Date('2027-05-31T00:00:00-03:00').getTime();
+  const box=$('count');
+  function draw(){
+    let s=Math.max(0,Math.floor((target-Date.now())/1000));
+    const d=Math.floor(s/86400); s%=86400; const h=Math.floor(s/3600); s%=3600; const m=Math.floor(s/60); s%=60;
+    const p=n=>String(n).padStart(2,'0');
+    box.innerHTML=[[d,'dias'],[p(h),'horas'],[p(m),'min'],[p(s),'seg']].map(([v,l])=>`<div><b>${v}</b><small>${l}</small></div>`).join('');
+  }
+  draw(); setInterval(draw,1000);
+}
+</script>
+
+</body>
+</html>
